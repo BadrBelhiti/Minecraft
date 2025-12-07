@@ -1,0 +1,23 @@
+[versions]
+kotlin = "1.9.22"
+paper = "1.20.4-R0.1-SNAPSHOT"
+bungeecord = "1.20-R0.2"
+shadow = "8.1.1"
+aws-cdk = "2.114.1"
+
+[libraries]
+# Minecraft APIs
+paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
+bungeecord-api = { module = "net.md-5:bungeecord-api", version.ref = "bungeecord" }
+
+# Kotlin
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+
+# AWS CDK
+aws-cdk-lib = { module = "software.amazon.awscdk:aws-cdk-lib", version.ref = "aws-cdk" }
+aws-constructs = { module = "software.constructs:constructs", version = "10.3.0" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }

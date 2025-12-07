@@ -1,0 +1,10 @@
+.gradle
+build
+server/*.jar
+server/world
+server/world_nether
+server/world_the_end
+server/logs
+server/cache
+.git
+*.md

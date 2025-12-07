@@ -1,0 +1,59 @@
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### IntelliJ IDEA ###
+.idea/*
+!.idea/codeStyles/
+!.idea/vcs.xml
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### CDK ###
+MinecraftCdk/cdk.out/
+.cdk.staging/
+
+### Minecraft Server Files ###
+SurvivalServer/server/*.jar
+SurvivalServer/server/plugins/*.jar
+SurvivalServer/server/world/
+SurvivalServer/server/world_nether/
+SurvivalServer/server/world_the_end/
+SurvivalServer/server/logs/
+SurvivalServer/server/cache/
+SurvivalServer/server/usercache.json
+SurvivalServer/server/banned-ips.json
+SurvivalServer/server/banned-players.json
+SurvivalServer/server/ops.json
+SurvivalServer/server/whitelist.json

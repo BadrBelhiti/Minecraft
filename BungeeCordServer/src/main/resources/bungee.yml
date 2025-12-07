@@ -1,0 +1,5 @@
+name: BungeeCordServer
+version: '1.0-SNAPSHOT'
+main: dev.nerdsatx.proxy.ProxyPlugin
+author: Nerds @ ATX
+description: BungeeCord server plugin for Nerds @ ATX network
