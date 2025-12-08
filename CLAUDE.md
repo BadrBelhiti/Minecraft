@@ -2,6 +2,8 @@
 
 A Kotlin-based Minecraft server network with AWS CDK infrastructure management.
 
+> **Note to Claude Code**: This file should be continuously updated with best practices, patterns, and architectural decisions established during development. When new patterns emerge or practices are refined, update this document to reflect the current state of the project.
+
 ## Project Structure
 
 This is a Gradle monorepo with a flat directory structure:
@@ -171,14 +173,19 @@ dependencies {
 3. **Build Delegation**: Build and run using "Gradle" (not IntelliJ)
 4. **JVM Version**: Ensure Gradle JVM is set to Java 17+
 
-## Plugin Development Workflow
+## Plugin Development Workflow (Docker-Integrated)
 
 1. Make changes to plugin code in `src/main/kotlin/`
-2. Update `plugin.yml` in `src/main/resources/` if needed
-3. Build with `./gradlew :PluginName:shadowJar`
-4. Output JAR is in `PluginName/build/libs/`
-5. Copy JAR to server's `plugins/` folder
-6. Restart server or use plugin reload
+2. Update `plugin.yml` or `bungee.yml` in `src/main/resources/` if needed
+3. Build with `./gradlew build` (rebuilds plugin JAR AND Docker image automatically)
+4. Restart containers with `docker-compose up -d`
+5. Test your changes
+
+**The Gradle build automatically**:
+- Compiles Kotlin code
+- Creates shadow JAR with relocated dependencies
+- Rebuilds the Docker image with the new plugin
+- No manual file copying needed!
 
 ## Shared Code Guidelines
 
@@ -198,6 +205,245 @@ shadowJar {
     relocate("com.zaxxer.hikari", "dev.nerdsatx.pluginname.shaded.hikari")
 }
 ```
+
+## Docker Integration
+
+### Gradle + Docker Build Integration
+
+**Critical Pattern**: Docker images are built automatically as part of the Gradle build process. This ensures that plugin code changes are always included in the Docker images without manual intervention.
+
+**Plugin Module Docker Build Pattern**:
+```kotlin
+tasks {
+    shadowJar {
+        archiveFileName.set("PluginName.jar")
+        relocate("kotlin", "dev.nerdsatx.pluginname.shaded.kotlin")
+        minimize()
+    }
+
+    // Auto-build Docker image after building plugin
+    val buildDockerImage by registering(Exec::class) {
+        description = "Build the Docker image with updated plugin"
+        group = "docker"
+
+        workingDir = rootProject.projectDir
+        commandLine("docker-compose", "build", "service-name")
+
+        dependsOn(shadowJar)
+    }
+
+    build {
+        dependsOn(shadowJar)
+        finalizedBy(buildDockerImage)  // Auto-rebuild Docker image
+    }
+}
+```
+
+This pattern is implemented in:
+- `SurvivalPlugin/build.gradle.kts` - builds `survival` Docker image
+- `BungeeCordServer/build.gradle.kts` - builds `bungeecord` Docker image
+
+### Docker Best Practices
+
+**1. Bake Everything into Images**
+- All plugins, configurations, and static assets are copied into Docker images at build time
+- NO volume mounts for plugins or configs (only for persistent data)
+- Images are self-contained and production-ready
+
+**2. Dockerfile Patterns**
+
+**Server Module Dockerfile** (e.g., SurvivalServer):
+```dockerfile
+FROM itzg/minecraft-server:latest
+
+# All configuration via ENV in Dockerfile, not docker-compose
+ENV EULA=TRUE \
+    TYPE=PAPER \
+    VERSION=1.20.4 \
+    MEMORY=2G \
+    SERVER_NAME="Survival Server" \
+    ONLINE_MODE=FALSE \
+    SPIGOT_BUNGEECORD=true
+
+# Copy plugin into image
+COPY SurvivalPlugin/build/libs/SurvivalPlugin.jar /plugins/
+
+EXPOSE 25565
+```
+
+**Proxy Module Dockerfile** (BungeeCordServer):
+```dockerfile
+FROM itzg/bungeecord:latest
+
+ENV TYPE=BUNGEECORD \
+    MEMORY=1G
+
+# Copy plugin
+COPY BungeeCordServer/build/libs/BungeeCordServer.jar /server/plugins/
+
+# CRITICAL: itzg/bungeecord uses /config/config.yml as source
+# It copies /config/config.yml to /server/config.yml on startup
+COPY BungeeCordServer/config.yml /config/config.yml
+
+EXPOSE 25577
+```
+
+**3. docker-compose.yml Minimalism**
+
+Keep docker-compose.yml minimal - it's for orchestration only, not configuration:
+
+```yaml
+version: '3.8'
+
+services:
+  # Use simple service names (not survival-server)
+  survival:
+    build:
+      context: .
+      dockerfile: SurvivalServer/Dockerfile
+    container_name: minecraft-survival
+    volumes:
+      # ONLY persist data that needs persistence
+      - survival-data:/data
+    networks:
+      - minecraft-network
+    restart: unless-stopped
+
+  bungeecord:
+    build:
+      context: .
+      dockerfile: BungeeCordServer/Dockerfile
+    container_name: minecraft-bungeecord
+    ports:
+      - "25577:25577"  # Only expose proxy to host
+    networks:
+      - minecraft-network
+    depends_on:
+      - survival
+    restart: unless-stopped
+
+networks:
+  minecraft-network:
+    driver: bridge
+
+volumes:
+  survival-data:  # Persists world data
+```
+
+**Key Principles**:
+- NO environment variables in docker-compose (they're in Dockerfiles)
+- NO plugin volume mounts (plugins are baked into images)
+- Service names are simple and match DNS hostnames used in configs
+- Only expose ports that need external access (BungeeCord proxy)
+
+**4. Docker Networking & DNS**
+
+**Service Name = DNS Hostname**:
+- Service name `survival` creates DNS alias `survival`
+- BungeeCord config uses: `address: survival:25565`
+- Docker's built-in DNS resolves service names automatically
+
+**Network Aliases**:
+```bash
+# Service "survival" gets these aliases:
+- survival              # Service name (PRIMARY - use this)
+- minecraft-survival    # Container name
+- <container-id>        # Container ID prefix
+```
+
+**5. itzg Image Configuration**
+
+**itzg/minecraft-server** (Paper servers):
+- Configure via ENV variables in Dockerfile
+- Plugin directory: `/plugins/`
+- Data directory: `/data/` (mount as volume for persistence)
+
+**itzg/bungeecord** (Proxy):
+- Configure via ENV variables in Dockerfile
+- Plugin directory: `/server/plugins/`
+- Config source: `/config/config.yml` (copied to `/server/config.yml` on startup)
+- **CRITICAL**: Always copy config to `/config/config.yml`, NOT `/server/config.yml`
+
+## Development Workflow
+
+### Standard Development Cycle
+
+```bash
+# 1. Make code changes to plugins
+# 2. Build everything (plugins AND Docker images)
+./gradlew build
+
+# 3. Start/restart containers
+docker-compose up -d
+
+# Or use the convenience script:
+./start-local.sh
+```
+
+### start-local.sh Pattern
+
+```bash
+#!/bin/bash
+set -e
+
+echo "🎮 Starting Nerds @ ATX Minecraft Network..."
+
+# Check Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "❌ Error: Docker is not running."
+    exit 1
+fi
+
+# Build plugins (this also builds Docker images via Gradle tasks)
+echo "📦 Building plugins..."
+./gradlew build -q
+
+echo "✅ Plugins built and Docker images rebuilt"
+
+# Start containers
+echo "🚀 Starting Docker containers..."
+docker-compose up -d
+
+echo "✅ Servers started!"
+echo "🎮 Connect to: localhost:25577"
+```
+
+### When Plugin Code Changes
+
+**The integrated build handles everything**:
+1. `./gradlew build` compiles plugin
+2. Gradle's `buildDockerImage` task rebuilds Docker image
+3. `docker-compose up -d` recreates containers with new image
+
+**No manual steps needed** - the Docker image is always up-to-date with your code.
+
+### Local vs Production Similarity
+
+The setup is designed for **maximum similarity** between local dev and production (ECS Fargate):
+- Same Docker images used locally and in production
+- No environment-specific scripts or configurations
+- All config baked into images
+- To override config in production: use ECS task definition environment variables
+
+### Common Issues & Solutions
+
+**Issue**: Plugin changes not appearing
+**Solution**: Run `./gradlew build` (not just `docker-compose up -d`) - Gradle rebuilds images
+
+**Issue**: "network has active endpoints" error
+**Solution**:
+```bash
+docker stop minecraft-bungeecord minecraft-survival
+docker rm minecraft-bungeecord minecraft-survival
+docker network rm minecraft_minecraft-network
+docker-compose up -d
+```
+
+**Issue**: BungeeCord can't find survival server (UnknownHostException)
+**Solution**: Check that docker-compose service names match hostnames in configs
+
+**Issue**: BungeeCord using default config instead of custom config
+**Solution**: Ensure config is copied to `/config/config.yml` in Dockerfile, NOT `/server/config.yml`
 
 ## AWS Infrastructure
 

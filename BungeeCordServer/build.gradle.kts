@@ -28,7 +28,19 @@ tasks {
         minimize()
     }
 
+    // Build Docker image after building the plugin
+    val buildDockerImage by registering(Exec::class) {
+        description = "Build the BungeeCord server Docker image"
+        group = "docker"
+
+        workingDir = rootProject.projectDir
+        commandLine("docker-compose", "build", "bungeecord")
+
+        dependsOn(shadowJar)
+    }
+
     build {
         dependsOn(shadowJar)
+        finalizedBy(buildDockerImage)
     }
 }

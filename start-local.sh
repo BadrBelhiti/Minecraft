@@ -22,11 +22,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ Plugins built successfully"
+echo "✅ Plugins built and Docker images rebuilt"
 echo ""
 
 # Start Docker containers
-echo "🐳 Starting Docker containers..."
+echo "🚀 Starting Docker containers..."
 docker-compose up -d
 
 if [ $? -ne 0 ]; then
@@ -36,18 +36,6 @@ fi
 
 echo ""
 echo "✅ Servers started!"
-echo ""
-
-# Configure BungeeCord
-echo "🔧 Configuring BungeeCord to connect to Survival server..."
-sleep 10  # Wait for BungeeCord to initialize
-
-if docker ps | grep -q minecraft-bungeecord; then
-    docker cp BungeeCordServer/config.yml minecraft-bungeecord:/server/config.yml 2>/dev/null || true
-    docker-compose restart bungeecord-server > /dev/null 2>&1
-    echo "✅ BungeeCord configured!"
-fi
-
 echo ""
 echo "📊 View logs:"
 echo "   docker-compose logs -f"

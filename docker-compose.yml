@@ -2,28 +2,14 @@ version: '3.8'
 
 services:
   # Survival Server - Paper Minecraft server
-  survival-server:
+  survival:
     build:
       context: .
       dockerfile: SurvivalServer/Dockerfile
     container_name: minecraft-survival
-    environment:
-      EULA: "TRUE"
-      TYPE: "PAPER"
-      VERSION: "1.20.4"
-      MEMORY: "2G"
-      SERVER_NAME: "Survival Server"
-      DIFFICULTY: "normal"
-      MODE: "survival"
-      ONLINE_MODE: "FALSE"  # BungeeCord handles authentication
-      ENABLE_RCON: "true"
-      RCON_PASSWORD: "minecraft"
-      SPIGOT_BUNGEECORD: "true"  # Enable BungeeCord support
     volumes:
-      # Persist world data
+      # Persist world data for local development
       - survival-data:/data
-      # Mount plugin from build
-      - ./SurvivalPlugin/build/libs/SurvivalPlugin.jar:/plugins/SurvivalPlugin.jar
     networks:
       - minecraft-network
     restart: unless-stopped
@@ -31,26 +17,18 @@ services:
     tty: true
 
   # BungeeCord Server - Proxy server
-  bungeecord-server:
+  bungeecord:
     build:
       context: .
       dockerfile: BungeeCordServer/Dockerfile
     container_name: minecraft-bungeecord
-    environment:
-      TYPE: "BUNGEECORD"
-      MEMORY: "1G"
     ports:
       # Expose BungeeCord to host
       - "25577:25577"
-    volumes:
-      # Persist BungeeCord config
-      - bungeecord-data:/server
-      # Mount plugin from build
-      - ./BungeeCordServer/build/libs/BungeeCordServer.jar:/server/plugins/BungeeCordServer.jar
     networks:
       - minecraft-network
     depends_on:
-      - survival-server
+      - survival
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -61,4 +39,3 @@ networks:
 
 volumes:
   survival-data:
-  bungeecord-data:
