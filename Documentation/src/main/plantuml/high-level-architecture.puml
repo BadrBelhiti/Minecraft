@@ -1,0 +1,79 @@
+@startuml high-level-architecture
+!pragma layout smetana
+
+skinparam rectangle {
+    BackgroundColor<<proxy>> LightBlue
+    BackgroundColor<<gameserver>> LightGreen
+    BackgroundColor<<discovery>> LightPink
+}
+
+skinparam cloud {
+    BackgroundColor LightGray
+}
+
+title Nerds @ ATX Minecraft Network - High-Level Architecture
+
+actor "Players" as players
+
+cloud "Load Balancer\n(Sticky Sessions)" as lb {
+}
+
+package "BungeeCord Proxies" {
+    rectangle "BungeeCord\nInstance 1" <<proxy>> as proxy1
+    rectangle "BungeeCord\nInstance 2" <<proxy>> as proxy2
+    rectangle "BungeeCord\nInstance N" <<proxy>> as proxyN
+}
+
+rectangle "Server Discovery\nService" <<discovery>> as discovery
+
+package "Game Servers" {
+    rectangle "Survival\nServer 1" <<gameserver>> as survival1
+    rectangle "Survival\nServer 2" <<gameserver>> as survival2
+    rectangle "Survival\nServer N" <<gameserver>> as survivalN
+}
+
+' Player connections
+players -down-> lb : "TCP Connection\nPort 25577"
+lb -down-> proxy1
+lb -down-> proxy2
+lb -down-> proxyN
+
+' Proxy to game servers (representative connections)
+proxy1 -down-> survival1 : "Forward players"
+proxy1 -down-> survival2
+proxy2 -down-> survival2
+proxyN -down-> survivalN
+
+' Server discovery interactions
+survival1 -up-> discovery : "Register\n(heartbeat)"
+survival2 -up-> discovery
+survivalN -up-> discovery
+
+proxy1 -right-> discovery : "Query servers\n(periodic)"
+proxyN -right-> discovery
+
+note right of lb
+  Routes player connections to
+  BungeeCord instances using
+  sticky sessions (same player
+  always goes to same proxy)
+end note
+
+note right of discovery
+  Tracks:
+  - Server IP addresses
+  - Server status (accepting players?)
+
+  BungeeCord proxies query this
+  service to update routing rules
+  dynamically
+end note
+
+note bottom of survival1
+  Game servers register on startup
+  and send periodic heartbeats with
+  status updates (accepting players,
+  player count, etc.)
+end note
+
+@enduml
