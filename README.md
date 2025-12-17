@@ -126,7 +126,7 @@ cd MinecraftCdk && cdk deploy
 
 ## Architecture
 
-![Architecture Diagram](Documentation/diagrams/architecture.png)
+![Architecture Diagram](Documentation/diagrams/high-level-architecture.png)
 
 ### AWS Infrastructure
 
