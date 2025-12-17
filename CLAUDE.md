@@ -33,9 +33,13 @@ Minecraft/
 ├── SkyBlockPlugin/               # SkyBlock game plugin
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/dev/nerdsatx/skyblock/
-└── SharedCore/                   # Shared utilities and models
+├── SharedCore/                   # Shared utilities and models
+│   ├── build.gradle.kts
+│   └── src/main/kotlin/dev/nerdsatx/shared/
+└── Documentation/                # Documentation and diagrams
     ├── build.gradle.kts
-    └── src/main/kotlin/dev/nerdsatx/shared/
+    ├── diagrams/                 # Generated PNG diagrams
+    └── src/main/plantuml/        # PlantUML source files
 ```
 
 ## Package Structure
@@ -57,6 +61,7 @@ BungeeCordProxy ──→  SharedCore
 MinecraftCdk    (independent)
 SurvivalServer  (independent)
 SkyBlockServer  (independent)
+Documentation   (independent)
 ```
 
 ## Technology Stack
@@ -145,6 +150,62 @@ dependencies {
 }
 ```
 
+**Documentation Module Pattern** (Documentation):
+```kotlin
+plugins {
+    base  // Required for IntelliJ to recognize as a Gradle module
+}
+
+// Configuration for PlantUML dependency
+val plantuml by configurations.creating
+
+dependencies {
+    plantuml("net.sourceforge.plantuml:plantuml:1.2024.3")
+}
+
+val plantumlSourceDir = file("src/main/plantuml")
+val plantumlOutputDir = file("diagrams")
+
+tasks {
+    // Generate PlantUML diagrams
+    val generateDiagrams by registering(JavaExec::class) {
+        description = "Generate PNG diagrams from PlantUML files"
+        group = "documentation"
+
+        mainClass.set("net.sourceforge.plantuml.Run")
+        classpath = plantuml
+        jvmArgs("-DPLANTUML_LIMIT_SIZE=8192")
+        args(
+            "-v",
+            "-tpng",
+            "-SdefaultRenderer=smetana",  // Use built-in Smetana renderer
+            "-o", plantumlOutputDir.absolutePath,
+            plantumlSourceDir.absolutePath
+        )
+
+        inputs.dir(plantumlSourceDir)
+        outputs.dir(plantumlOutputDir)
+
+        doFirst {
+            plantumlOutputDir.mkdirs()
+        }
+    }
+
+    build {
+        dependsOn(generateDiagrams)
+    }
+}
+```
+
+**Key Points**:
+- PlantUML diagrams are stored in `src/main/plantuml/`
+- Generated PNGs are output to `diagrams/` within the Documentation module
+- Diagrams are automatically regenerated on `./gradlew build`
+- Uses Smetana renderer (built-in) - no Graphviz installation required
+- Add `!pragma layout smetana` at the top of .puml files for best results
+- The module is independent and has no dependencies on other modules
+- Diagrams can be referenced in README.md via `Documentation/diagrams/filename.png`
+
 ## Common Gradle Commands
 
 ```bash
@@ -161,6 +222,9 @@ dependencies {
 # Deploy infrastructure
 ./gradlew :MinecraftCdk:run
 
+# Generate documentation diagrams
+./gradlew :Documentation:build
+
 # Clean and rebuild
 ./gradlew clean build
 ```
@@ -172,6 +236,36 @@ dependencies {
     - Enable "Reload changes automatically"
 3. **Build Delegation**: Build and run using "Gradle" (not IntelliJ)
 4. **JVM Version**: Ensure Gradle JVM is set to Java 17+
+
+### Module Registration
+
+Modules are automatically registered in IntelliJ via `.idea/gradle.xml`. When adding a new module:
+
+1. Add the module to `settings.gradle.kts` (required for Gradle)
+2. Add the module to `.idea/gradle.xml` in the `<modules>` section (for IntelliJ recognition)
+
+Example entry in `.idea/gradle.xml`:
+```xml
+<option name="modules">
+  <set>
+    <option value="$PROJECT_DIR$" />
+    <option value="$PROJECT_DIR$/Documentation" />
+    <option value="$PROJECT_DIR$/SharedCore" />
+    <!-- ... other modules ... -->
+  </set>
+</option>
+```
+
+**Current registered modules**:
+- Root project
+- BungeeCordServer
+- Documentation
+- MinecraftCdk
+- SharedCore
+- SurvivalPlugin
+- SurvivalServer
+
+After updating `.idea/gradle.xml`, IntelliJ will automatically recognize the modules on project reload.
 
 ## Plugin Development Workflow (Docker-Integrated)
 

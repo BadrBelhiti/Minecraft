@@ -124,7 +124,11 @@ SurvivalServer   (independent)
 cd MinecraftCdk && cdk deploy
 ```
 
-## AWS Architecture
+## Architecture
+
+![Architecture Diagram](Documentation/diagrams/architecture.png)
+
+### AWS Infrastructure
 
 The infrastructure deploys to AWS ECS Fargate with:
 
@@ -156,6 +160,20 @@ See [CLAUDE.md](CLAUDE.md) for detailed development guidelines, patterns, and be
 - [DOCKER.md](DOCKER.md) - Detailed Docker setup and local development
 - [CLAUDE.md](CLAUDE.md) - Development guidelines and patterns
 - [MinecraftCdk/README.md](MinecraftCdk/README.md) - AWS infrastructure details
+- [Documentation/diagrams/](Documentation/diagrams/) - Architecture diagrams
+
+### Regenerating Diagrams
+
+Architecture diagrams are generated from PlantUML source files in the `Documentation` module:
+
+```bash
+# Generate all diagrams
+./gradlew :Documentation:build
+
+# Output: Documentation/diagrams/architecture.png
+```
+
+PlantUML source files are located in `Documentation/src/main/plantuml/`.
 
 ## License
 

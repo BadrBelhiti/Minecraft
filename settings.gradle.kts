@@ -6,5 +6,6 @@ include(
     "SurvivalPlugin",
     "BungeeCordServer",
     "SurvivalServer",
-    "MinecraftCdk"
+    "MinecraftCdk",
+    "Documentation"
 )
